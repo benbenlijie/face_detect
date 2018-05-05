@@ -1,0 +1,143 @@
+import tensorflow as tf
+from bunch import Bunch
+import numpy as np
+import os
+import cv2
+import matplotlib.pyplot as plt
+
+class DatasetLoader(object):
+    filp_mapping = np.array(
+        [16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17, 27, 28, 29,
+         30, 35, 34, 33, 32, 31,
+         45, 44, 43, 42, 47, 46, 39, 38, 37, 36, 41, 40, 54, 53, 52, 51, 50, 49, 48, 59, 58, 57, 56, 55, 64, 63, 62, 61,
+         60, 67, 66, 65])
+
+    def __init__(self, config: Bunch, shuffle=True):
+        """
+
+        :param config: {"dataFile", "bboxFile", "imageFolder", "annotationFolder",
+                        "inputHeight", "inputWidth", "margin"[left, top, right, bottom]}
+        :param shuffle:
+        """
+        self.config = config
+        self.shuffle = shuffle
+        with open(self.config.bboxFile, "r") as f:
+            textLines = f.readlines()[1:]
+        bboxTexts = [line.replace("\n", "").split(",") for line in textLines]
+        self.bboxInfos = {line[0]: list(map(int, line[1:])) for line in bboxTexts}
+        self.dataset = tf.data.TextLineDataset(self.config.dataFile)
+        self.dataset = self.dataset.map(
+            lambda fileName: tf.py_func(self.prepareInput, [fileName], [tf.uint8, tf.float64]))
+
+    def get_data(self):
+        iterator = self.dataset.make_one_shot_iterator()
+        return iterator.get_next()
+
+    def prepareInput(self, inFileName):
+        fileName = inFileName.decode("UTF-8")
+        filePath = os.path.join(self.config.imageFolder, fileName)
+
+        # read raw image
+        image = cv2.imread(filePath, cv2.IMREAD_COLOR)
+        height, width, _ = image.shape
+
+        # prepare bbox data
+        bbox = self.bboxInfos[fileName]
+
+        # prepare annotation data
+        annotationPath = os.path.join(self.config.annotationFolder, "{}.pts".format(fileName.split(".")[0]))
+        with open(annotationPath, "r") as f:
+            annotationLines = f.readlines()
+        # ignore useless lines
+        annotationLines = annotationLines[3:-1]
+        annotation = [[float(value[0]),
+                       float(value[1])]
+                      for value in [line.split(" ") for line in annotationLines]]
+
+        annotation = np.array(annotation)
+
+        # enhance image with random flip and random rotate
+        # randomFlip image+bbox+annotation
+        image, bbox, annotation = self._randomFlip(image, bbox, annotation)
+        # randomRotate image+bbox+annotation
+        image, bbox, annotation = self._randomRotate(image, bbox, annotation)
+
+        # crop face
+        bbox = self.adjustBbox(bbox, [width, height])
+        xmin, ymin, xmax, ymax = bbox
+        face = image[ymin:ymax, xmin:xmax]
+        originWidth, originHeight = xmax - xmin, ymax - ymin
+        xScale, yScale = self.config.inputWidth / originWidth, self.config.inputHeight / originHeight
+        face = cv2.resize(face, (self.config.inputWidth, self.config.inputHeight))
+
+        # adjust annotation
+        annotation = np.array([[(point[0] - xmin) * xScale, (point[1] - ymin) * yScale] for point in annotation])
+
+        return face, annotation.flatten()
+
+    def _randomFlip(self, img, bbox, annotation):
+        """
+
+        :param img: [height, width, channel]
+        :param bbox:  [xmin, ymin, xmax, ymax]
+        :param annotation: [[x, y], ...] shape == [64, 2]
+        :return:
+        img, bbox, annotation
+        """
+        # 50% to flip
+        if np.random.random() < 0.5:
+            return img, bbox, annotation
+        height, width, _ = img.shape
+        # flip img
+        img = cv2.flip(img, 1)
+        # flip bbox
+        xmin, ymin, xmax, ymax = bbox
+        xmin, xmax = width - xmax, width - xmin
+        bbox = [xmin, ymin, xmax, ymax]
+        # flip annotation
+        annotation = np.array([[width - point[0], point[1]] for point in annotation])
+        # reorder point
+        annotation = annotation[DatasetLoader.filp_mapping]
+
+        return img, bbox, annotation
+
+    def _randomRotate(self, img, bbox, annotation, angle=15):
+        """
+
+        :param img: [height, width, channel]
+        :param bbox:  [xmin, ymin, xmax, ymax]
+        :param annotation: [[x, y], ...] shape == [64, 2]
+        :return:
+        img, bbox, annotation
+        """
+        # 33% to rotate
+        # if np.random.random() < 2/3:
+        #     return img, bbox, annotation
+        # elif np.random.random() < 0.5:
+        #     angle *= -1
+        height, width, channel = img.shape
+        rotationMat = cv2.getRotationMatrix2D((width/2, height/2), angle, 1)
+
+        # rotate img
+        avg_color_per_row = np.average(img, axis=0)
+        avg_color = np.average(avg_color_per_row, axis=0)
+        img = cv2.warpAffine(img, rotationMat, (width, height), borderValue=avg_color)
+
+        # rotate bbox
+        bboxPoints = np.array([[x, y, 1] for x in bbox[::2] for y in bbox[1::2]])
+        bboxPoints = rotationMat.dot(bboxPoints.T).T
+        bbox = [np.min(bboxPoints[:, 0]), np.min(bboxPoints[:, 1]), np.max(bboxPoints[:, 0]), np.max(bboxPoints[:, 1])]
+
+        # rotate annotation
+        annotationMat = np.concatenate((annotation, np.ones((len(annotation), 1))), axis=1)
+        annotation = rotationMat.dot(annotationMat.T).T
+
+        return img, bbox, annotation
+
+    def adjustBbox(self, bbox, imgSize):
+        xmin, ymin, xmax, ymax = bbox
+        width, height = xmax - xmin, ymax - ymin
+        newBbox = [ int(np.clip(pos[0] + pos[1] * pos[2], 0, pos[3]-1))
+                    for pos in zip(bbox, self.config.margin, [width, height] * 2, imgSize * 2)]
+
+        return newBbox
