@@ -28,6 +28,10 @@ class DatasetLoader(object):
         self.dataset = tf.data.TextLineDataset(self.config.dataFile)
         self.dataset = self.dataset.map(
             lambda fileName: tf.py_func(self.prepareInput, [fileName], [tf.uint8, tf.float64]))
+        self.dataset = self.dataset.repeat(self.config.num_epochs)
+        self.dataset = self.dataset.batch(self.config.batch_size)
+        if shuffle:
+            self.dataset = self.dataset.shuffle(self.config.batch_size * 4)
 
     def get_data(self):
         iterator = self.dataset.make_one_shot_iterator()
@@ -73,7 +77,7 @@ class DatasetLoader(object):
         # adjust annotation
         annotation = np.array([[(point[0] - xmin) * xScale, (point[1] - ymin) * yScale] for point in annotation])
 
-        return face, annotation.flatten()
+        return cv2.cvtColor(face, cv2.COLOR_BGR2RGB), annotation
 
     def _randomFlip(self, img, bbox, annotation):
         """

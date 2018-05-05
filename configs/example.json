@@ -1,21 +1,18 @@
 {
   "learning_rate": 0.001,
-
   "num_sampels": 1000,
-  "record_file_name": "e:\\Github\\fast-style-transfer\\datasets\\image_train_*.tfrecord",
-  "Image_files": "e:\\Github\\style-swap\\images\\style\\*.jpg",
-  "exp_name": "style_swap",
+  "exp_name": "face_keypoints",
   "batch_size": 16,
-  "num_epochs": 2,
-  "weight_regulation_scale": 0.05,
-  "net_name": "vgg_16",
+  "num_epochs": 20000,
   "log_name": "log",
 
+  "init_checkpoint": "mobilenet_v2_1.0_224.ckpt",
   "dataFile": "C:\\Users\\benbe\\Documents\\temp\\face_data\\train.txt",
   "bboxFile": "C:\\Users\\benbe\\Documents\\temp\\face_data\\bbox.txt",
   "imageFolder": "C:\\Users\\benbe\\Documents\\temp\\face_data\\images\\",
   "annotationFolder": "C:\\Users\\benbe\\Documents\\temp\\face_data\\annotations\\",
   "inputHeight": 224,
   "inputWidth": 224,
-  "margin": [-0.15, -0.15, 0.15, 0.25]
+  "margin": [-0.15, -0.15, 0.15, 0.25],
+  "num_outputs": 136
 }

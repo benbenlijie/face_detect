@@ -29,7 +29,6 @@ class BaseModel:
         self.summary = tf.summary.FileWriter(logdir=self.config.summary_dir, graph=tf.get_default_graph())
 
     def _init_saver(self):
-
         if not tf.gfile.Exists(self.config.checkpoint_dir):
             tf.gfile.MakeDirs(self.config.checkpoint_dir)
         self.saver = tf.train.Saver(self.save_variables)
