@@ -111,7 +111,7 @@ class DatasetLoader(object):
             image, bbox, annotation = self._randomRotate(image, bbox, annotation)
 
         # crop face
-        
+        bbox = self.adjustBbox(bbox, [width, height])
         xmin, ymin, xmax, ymax = bbox
         face = image[ymin:ymax, xmin:xmax]
         originWidth, originHeight = xmax - xmin, ymax - ymin
@@ -129,8 +129,10 @@ class DatasetLoader(object):
         offset = np.array(bbox[:2], np.float32)
         scale = np.array([xScale, yScale], np.float32)
         originAnnotation = np.array(annotation, np.float32)
-        # adjust annotation and normalized to 0~1 value
-        annotation = np.array([[(point[0] - xmin) * xScale, (point[1] - ymin) * yScale] for point in annotation], dtype=np.float32)
+        # adjust annotation and normalized to -1~1 value
+        annotation = np.array([[(point[0] - xmin) * xScale * 2. - 1., (point[1] - ymin) * yScale * 2. - 1.]
+                               for point in annotation], dtype=np.float32)
+        # annotation = (annotation * 2. - 1.).astype(np.float32)
         if train:
             return face, annotation
         else:
@@ -143,6 +145,10 @@ class DatasetLoader(object):
             # provide offset, [xScale, yScale] to translate the output to origin axis.
             return face, annotation, offset, scale, originAnnotation, \
                    origin_image, origin_image_size
+
+    def _normalize(self, annotation, ):
+
+        pass
 
     def _randomFlip(self, img, bbox, annotation):
         """
@@ -196,7 +202,8 @@ class DatasetLoader(object):
         bboxPoints = np.array([[x, y, 1] for x in bbox[::2] for y in bbox[1::2]])
         bboxPoints = rotationMat.dot(bboxPoints.T).T
         newBbox = [np.min(bboxPoints[:, 0]), np.min(bboxPoints[:, 1]), np.max(bboxPoints[:, 0]), np.max(bboxPoints[:, 1])]
-        newBbox = self.adjustBbox(newBbox, [width, height])
+        newBbox = [int(np.clip(pos[0], 0, pos[1])) for pos in zip(newBbox, [width, height] * 2)]
+
         xmin, ymin, xmax, ymax = newBbox
         originWidth, originHeight = xmax - xmin, ymax - ymin
         if originWidth == 0 or originHeight == 0:
