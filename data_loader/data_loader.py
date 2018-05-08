@@ -9,7 +9,7 @@ class BaseDataLoader:
         self.config = config
         self.shuffle = shuffle
 
-    def get_data(self):
+    def get_data(self, train=True):
         raise NotImplementedError
 
     def batch_data(self, input_tensor=None, num_threads=4, capacity=4):
@@ -43,7 +43,7 @@ class RecordDataLoader(BaseDataLoader):
     def _define_features(self):
         raise NotImplementedError
 
-    def get_data(self):
+    def get_data(self, train=True):
         reader = tf.TFRecordReader
         decoder = slim.tfexample_decoder.TFExampleDecoder(
             self.keys_to_features, self.items_to_handlers

@@ -6,7 +6,6 @@ from trainers.example_trainer import ExampleTrainer
 from utils.config import process_config
 from utils.utils import get_args
 
-import matplotlib.pyplot as plt
 
 def main():
     # capture the config path from the run arguments
@@ -23,6 +22,7 @@ def main():
 
     model = ExampleModel(config, image_loader)
     model.init_train_model()
+    model.init_evaluate_model()
 
     with tf.Session() as sess:
         trainer = ExampleTrainer(sess, model, config)

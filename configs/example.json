@@ -2,17 +2,29 @@
   "learning_rate": 0.001,
   "num_sampels": 1000,
   "exp_name": "face_keypoints",
-  "batch_size": 16,
+  "batch_size": 4,
   "num_epochs": 20000,
   "log_name": "log",
+  "save_name": "save_0",
+
+  "fine_tune": true,
 
   "init_checkpoint": "mobilenet_v2_1.0_224.ckpt",
   "dataFile": "C:\\Users\\benbe\\Documents\\temp\\face_data\\train.txt",
   "bboxFile": "C:\\Users\\benbe\\Documents\\temp\\face_data\\bbox.txt",
   "imageFolder": "C:\\Users\\benbe\\Documents\\temp\\face_data\\images\\",
   "annotationFolder": "C:\\Users\\benbe\\Documents\\temp\\face_data\\annotations\\",
+
+  "valDataFile": "C:\\Users\\benbe\\Documents\\temp\\face_data\\train.txt",
+  "valBboxFile": "C:\\Users\\benbe\\Documents\\temp\\face_data\\bbox.txt",
+  "valImageFolder": "C:\\Users\\benbe\\Documents\\temp\\face_data\\images\\",
+  "valAnnotationFolder": "C:\\Users\\benbe\\Documents\\temp\\face_data\\annotations\\",
+
   "inputHeight": 224,
   "inputWidth": 224,
   "margin": [-0.15, -0.15, 0.15, 0.25],
-  "num_outputs": 136
+  "num_outputs": 136,
+  "saveInter": 300,
+  "lr_step": 500,
+  "logInter": 1
 }

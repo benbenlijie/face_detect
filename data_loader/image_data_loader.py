@@ -7,7 +7,7 @@ class ImageDataLoader(BaseDataLoader):
     def __init__(self, config, shuffle=True):
         super(ImageDataLoader, self).__init__(config, shuffle)
 
-    def get_data(self):
+    def get_data(self, train=True):
         data_files = get_data_files(self.config.Image_files)
         print("data files", data_files)
         filename_queue = tf.train.string_input_producer(

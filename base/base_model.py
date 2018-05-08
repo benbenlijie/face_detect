@@ -17,7 +17,6 @@ class BaseModel:
 
     def init_evaluate_model(self):
         self._build_evaluate_model()
-        self._init_saver()
 
     def _init_global_step(self):
         self.global_step = tf.train.get_or_create_global_step()
@@ -25,7 +24,7 @@ class BaseModel:
     def _init_summary(self):
         if not tf.gfile.Exists(self.config.summary_dir):
             tf.gfile.MakeDirs(self.config.summary_dir)
-        self.summary_op = tf.summary.merge_all()
+
         self.summary = tf.summary.FileWriter(logdir=self.config.summary_dir, graph=tf.get_default_graph())
 
     def _init_saver(self):
@@ -35,12 +34,14 @@ class BaseModel:
 
     def save(self, sess, global_step=None):
         tf.logging.info("Saving model...")
-        self.saver.save(sess, os.path.join(self.config.checkpoint_dir, self.config.exp_name), global_step)
+        save_folder = os.path.join(self.config.checkpoint_dir, self.config.save_name)
+        self.saver.save(sess, os.path.join(save_folder, self.config.exp_name), global_step)
         tf.logging.info("Model saved")
 
     def load(self, sess):
-        print(os.path.join(self.config.checkpoint_dir))
-        latest_checkpoint = tf.train.latest_checkpoint(os.path.join(self.config.checkpoint_dir))
+        save_folder = os.path.join(self.config.checkpoint_dir, self.config.save_name)
+        print(save_folder)
+        latest_checkpoint = tf.train.latest_checkpoint(save_folder)
         if latest_checkpoint:
             tf.logging.info("Loading model checkpoint from {}".format(latest_checkpoint))
             self.saver.restore(sess, latest_checkpoint)
