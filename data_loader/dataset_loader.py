@@ -123,6 +123,7 @@ class DatasetLoader(object):
 
         face = cv2.cvtColor(face, cv2.COLOR_BGR2RGB)
         face = face / 128. - 1.
+        face = face.astype(np.float32)
 
         offset = np.array(bbox[:2], np.float32)
         scale = np.array([xScale, yScale], np.float32)
@@ -137,6 +138,7 @@ class DatasetLoader(object):
             origin_image_size = np.array([width, height], np.int32)
             origin_image = cv2.cvtColor(origin_image, cv2.COLOR_BGR2RGB)
             origin_image = origin_image / 128. - 1
+            origin_image = origin_image.astype(np.float32)
             # provide offset, [xScale, yScale] to translate the output to origin axis.
             return face, annotation, offset, scale, originAnnotation, \
                    origin_image, origin_image_size
