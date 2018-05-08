@@ -56,7 +56,7 @@ class ExampleModel(BaseModel):
         self.val_annotation = tf.transpose(reshaped_output *
                                            np.array([self.config.inputWidth, self.config.inputHeight]), (1, 0, 2))
         self.val_origin_output = tf.transpose(
-            (reshaped_output * np.array([self.config.inputWidth, self.config.inputHeight]) / scale) + offset, (1, 0, 2))
+            (reshaped_output / scale) + offset, (1, 0, 2))
 
         self.val_input = inputs
         self.val_target = targets
