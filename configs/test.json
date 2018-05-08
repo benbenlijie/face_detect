@@ -1,0 +1,30 @@
+{
+  "learning_rate": 0.01,
+  "num_sampels": 1000,
+  "exp_name": "face_keypoints",
+  "batch_size": 1,
+  "num_epochs": 200,
+  "log_name": "log_lr=0.01_sum_2",
+  "save_name": "save_2",
+  "fine_tune": true,
+
+  "init_checkpoint": "mobilenet_v2_1.0_224.ckpt",
+
+  "dataFile": "/home/ubuntu/face_detect/face_data/train/train.txt",
+  "bboxFile": "/home/ubuntu/face_detect/face_data/train/bbox.txt",
+  "imageFolder": "/home/ubuntu/face_detect/face_data/train/images",
+  "annotationFolder": "/home/ubuntu/face_detect/face_data/train/annotations",
+
+  "valDataFile": "/home/ubuntu/face_detect/face_data/val/common.txt",
+  "valBboxFile": "/home/ubuntu/face_detect/face_data/val/bbox.txt",
+  "valImageFolder": "/home/ubuntu/face_detect/face_data/val/images",
+  "valAnnotationFolder": "/home/ubuntu/face_detect/face_data/val/annotations",
+
+  "inputHeight": 224,
+  "inputWidth": 224,
+  "margin": [-0.15, -0.15, 0.15, 0.25],
+  "num_outputs": 136,
+  "saveInter": 100,
+  "lr_step": 1000,
+  "logInter": 50
+}
