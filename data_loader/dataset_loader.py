@@ -76,6 +76,7 @@ class DatasetLoader(object):
 
     def prepareInput(self, inFileName, train):
         fileName = inFileName.decode("UTF-8")
+        print(fileName)
         info_key = "train" if train else "val"
         infos = self.infos[info_key]
         imageFolder = infos["imageFolder"]
