@@ -52,7 +52,7 @@ class DatasetLoader(object):
         if train:
             output_type = [tf.float32, tf.float32]
         else:
-            output_type = [tf.float32, tf.float32, tf.float32, tf.float32, tf.float32, tf.uint8, tf.int32]
+            output_type = [tf.float32, tf.float32, tf.float32, tf.float32, tf.float32, tf.float32, tf.int32]
 
         dataset = tf.data.TextLineDataset(dataFile)
         dataset = dataset.map(
