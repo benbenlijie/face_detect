@@ -81,6 +81,8 @@ class ExampleModel(BaseModel):
 
     def init_op(self, sess):
         self.summary_op = tf.summary.merge_all()
+        self.data_loader.init_data_loader(sess, True)
+        self.data_loader.init_data_loader(sess, False)
         sess.run(tf.global_variables_initializer())
 
     def _loss(self, outputs, targets):

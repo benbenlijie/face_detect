@@ -20,8 +20,10 @@ def main():
         exit(0)
 
     image_loader = DatasetLoader(config, True)
-
-    model = VGGModel(config, image_loader)
+    if "vgg" in config.init_checkpoint:
+        model = VGGModel(config, image_loader)
+    else:
+        model = ExampleModel(config, image_loader)
     model.init_train_model()
     model.init_evaluate_model()
 

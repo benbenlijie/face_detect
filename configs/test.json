@@ -22,7 +22,7 @@
 
   "inputHeight": 224,
   "inputWidth": 224,
-  "margin": [-0.15, -0.15, 0.15, 0.25],
+  "margin": [-0.15, -0.10, 0.15, 0.25],
   "num_outputs": 136,
   "saveInter": 100,
   "lr_step": 1000,

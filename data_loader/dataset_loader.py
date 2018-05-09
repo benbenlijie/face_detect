@@ -25,6 +25,7 @@ class DatasetLoader(object):
         self.dataset = self._create_dataset(self.bboxFile, self.dataFile, self.imageFolder, self.annotationFolder)
         self.valDataset = self._create_dataset(
             self.valBboxFile, self.valDataFile, self.valImageFolder, self.valAnnotationFolder, train=False)
+        self.data_iterator = dict()
 
     def _init_config(self, config: Bunch):
         self.config = config
@@ -43,7 +44,7 @@ class DatasetLoader(object):
             textLines = f.readlines()[1:]
         bboxTexts = [line.replace("\n", "").split(",") for line in textLines]
 
-        info_key = "train" if train else "val"
+        info_key = self._get_train_key(train)
         infos = {}
         infos["bboxInfos"] = {line[0]: list(map(int, line[1:])) for line in bboxTexts}
         infos["imageFolder"] = imageFolder
@@ -67,17 +68,24 @@ class DatasetLoader(object):
         return dataset
 
     def get_data(self, train=True):
+        info_key = self._get_train_key(train)
         if train:
-            iterator = self.dataset.make_one_shot_iterator()
-            return iterator.get_next()
+            iterator = self.dataset.make_initializable_iterator()
         else:
-            iterator = self.valDataset.make_one_shot_iterator()
-            return iterator.get_next()
+            iterator = self.valDataset.make_initializable_iterator()
+        self.data_iterator[info_key] = iterator
+        return iterator.get_next()
+
+    def init_data_loader(self, sess, train=True):
+        info_key = self._get_train_key(train)
+        if info_key in self.data_iterator:
+            iterator = self.data_iterator[info_key]
+            sess.run(iterator.initializer)
 
     def prepareInput(self, inFileName, train):
         fileName = inFileName.decode("UTF-8")
 
-        info_key = "train" if train else "val"
+        info_key = self._get_train_key(train)
         infos = self.infos[info_key]
         imageFolder = infos["imageFolder"]
         annotationFolder = infos["annotationFolder"]
@@ -231,3 +239,7 @@ class DatasetLoader(object):
                     for pos in zip(bbox, self.config.margin, [width, height] * 2, imgSize * 2)]
 
         return newBbox
+
+    def _get_train_key(self, train):
+        info_key = "train" if train else "val"
+        return info_key

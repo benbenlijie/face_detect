@@ -10,7 +10,7 @@
 
   "init_checkpoint": "vgg_19.ckpt",
 
-  "dataFile": "/home/ubuntu/face_detect/face_data/train/train.txt",
+  "dataFile": "/home/ubuntu/face_detect/face_data/train/train2.txt",
   "bboxFile": "/home/ubuntu/face_detect/face_data/train/bbox.txt",
   "imageFolder": "/home/ubuntu/face_detect/face_data/train/images",
   "annotationFolder": "/home/ubuntu/face_detect/face_data/train/annotations",
@@ -26,5 +26,5 @@
   "num_outputs": 136,
   "saveInter": 100,
   "lr_step": 1000,
-  "logInter": 50
+  "logInter": 500
 }
