@@ -58,7 +58,7 @@ class DatasetLoader(object):
         dataset = dataset.map(
             lambda fileName: tf.py_func(
                 self.prepareInput, [fileName, train], output_type))
-        dataset = dataset.repeat(self.config.num_epochs)
+        # dataset = dataset.repeat(self.config.num_epochs)
         dataset = dataset.batch(self.config.batch_size)
         if self.shuffle and train:
             dataset = dataset.shuffle(self.config.batch_size * 2)

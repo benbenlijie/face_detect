@@ -1,12 +1,44 @@
 from base.base_train import BaseTrain
 import sys
 import numpy as np
+import tensorflow as tf
+import time
 
 
 class ExampleTrainer(BaseTrain):
     def __init__(self, sess, model, config):
         super(ExampleTrainer, self).__init__(sess, model, config)
         self.best_score = float('inf')
+
+    def train(self):
+        tf.logging.info("Start to Train")
+        if self.model.init_op is not None:
+            self.model.init_op(self.sess)
+        self.model.load(self.sess)
+        for i in range(self.config.num_epochs):
+            try:
+                while True:
+                    start_time = time.time()
+                    self.train_step()
+                    elapsed_time = time.time() - start_time
+                    self.log_step(elapsed_time)
+            except tf.errors.OutOfRangeError as e:
+                tf.logging.info("Train epoch {} finished".format(i+1))
+            finally:
+                self.model.save(self.sess)
+            # test on val set
+            start_time = time.time()
+            self.val_metric = []
+            try:
+                while True:
+                    self.eval_step()
+                pass
+            except tf.errors.OutOfRangeError as e:
+                pass
+            elapsed_time = time.time() - start_time
+            self.val_metric = np.mean(np.array(self.val_metric), axis=0)
+            tf.logging.info("Epoch {}: val loss: {}; val nme: {}; cost time: {}"
+                            .format(i+1, self.val_metric[0], self.val_metric[1], elapsed_time))
 
     def train_step(self):
         self.sess.run(self.model.train_op)
@@ -17,6 +49,10 @@ class ExampleTrainer(BaseTrain):
                 self.model.save(self.sess)
                 self.best_score = val_loss
 
+    def eval_step(self):
+        val_loss, val_nme = self.sess.run(
+            [self.model.val_loss, self.model.val_nme])
+        self.val_metric.append([val_loss, val_nme])
 
     def log_step(self, elapsed_time=0):
         loss, step = self.sess.run([self.model.loss_op, self.model.global_step])
@@ -25,26 +61,4 @@ class ExampleTrainer(BaseTrain):
         summary_str = self.sess.run(self.model.summary_op)
         self.model.summary.add_summary(summary_str, step)
         self.model.summary.flush()
-        if step % self.config.logInter == 0:
-            val_input, val_output, val_target, \
-            val_image, val_origin_output, val_origin_annotation, val_image_size = self.sess.run(
-                [self.model.val_input, self.model.val_annotation, self.model.val_target_annotation,
-                 self.model.val_image, self.model.val_origin_output, self.model.val_originAnnotation,
-                 self.model.val_image_size
-                 ])
-            if val_input.ndim == 4:
-                for i in range(len(val_input)):
-                    image_arr = val_input[i]
-                    annotation = val_output[i].flatten()
-                    target_anno = val_target[i].flatten()
-                    annotation = np.concatenate((annotation, target_anno))
-                    file_name = "val_output_{:05}_{:02}.jpg".format(step, i)
-                    self.model.save_val_image(image_arr, list(map(int, annotation)), file_name)
-            if val_image.ndim == 4:
-                for i in range(len(val_image)):
-                    image_arr = val_image[i]
-                    annotation = val_origin_output[i].flatten()
-                    target_anno = val_origin_annotation[i].flatten()
-                    annotation = np.concatenate((annotation, target_anno))
-                    file_name = "val_origin_output_{:05}_{:02}.jpg".format(step, i)
-                    self.model.save_val_image(image_arr, list(map(int, annotation)), file_name, val_image_size[i])
+
