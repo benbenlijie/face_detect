@@ -11,6 +11,9 @@ class CustomModel(ExampleModel):
     def __init__(self, config, data_loader):
         super(CustomModel, self).__init__(config, data_loader)
 
+    def _build_model(self, inputs, is_training=True):
+        return self._model(inputs, num_classes=self.config.num_outputs, is_training=is_training)
+
     def _model(self, inputs,
                    num_classes=1000,
                    is_training=True,
