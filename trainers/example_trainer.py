@@ -25,25 +25,26 @@ class ExampleTrainer(BaseTrain):
         summary_str = self.sess.run(self.model.summary_op)
         self.model.summary.add_summary(summary_str, step)
         self.model.summary.flush()
-        if step % self.config.logInter == 0:
-            val_input, val_output, val_target = self.sess.run(
-                [self.model.val_input, self.model.val_annotation, self.model.val_target_annotation])
+        if step % self.config.logInter == 1:
+            val_input, val_output, val_target, \
+            val_image, val_origin_output, val_origin_annotation, val_image_size = self.sess.run(
+                [self.model.val_input, self.model.val_annotation, self.model.val_target_annotation,
+                 self.model.val_image, self.model.val_origin_output, self.model.val_originAnnotation,
+                 self.model.val_image_size
+                 ])
             if val_input.ndim == 4:
                 for i in range(len(val_input)):
                     image_arr = val_input[i]
                     annotation = val_output[i].flatten()
                     target_anno = val_target[i].flatten()
                     annotation = np.concatenate((annotation, target_anno))
-                    file_name = "val_output_{}_{}.jpg".format(step, i)
+                    file_name = "val_output_{:05}_{:02}.jpg".format(step, i)
                     self.model.save_val_image(image_arr, list(map(int, annotation)), file_name)
-            val_image, val_origin_output, val_origin_annotation, val_image_size = self.sess.run([
-                self.model.val_image, self.model.val_origin_output, self.model.val_originAnnotation, self.model.val_image_size
-            ])
             if val_image.ndim == 4:
                 for i in range(len(val_image)):
                     image_arr = val_image[i]
                     annotation = val_origin_output[i].flatten()
                     target_anno = val_origin_annotation[i].flatten()
                     annotation = np.concatenate((annotation, target_anno))
-                    file_name = "val_origin_output_{}_{}.jpg".format(step, i)
+                    file_name = "val_origin_output_{:05}_{:02}.jpg".format(step, i)
                     self.model.save_val_image(image_arr, list(map(int, annotation)), file_name, val_image_size[i])

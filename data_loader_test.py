@@ -21,6 +21,10 @@ def main():
         sess.run(tf.global_variables_initializer())
         img, anno = sess.run([train_img, train_anno])
         print("[train] img size:", img.shape, "\nannotations:", anno)
+        img = img[0]
+        img = img * 128 + 128
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        cv2.imwrite("train.jpg", img)
         img, anno, offset, scale, origin_anno, origin_img, origin_size = sess.run(
             [val_img, val_anno, val_offset, val_scale, val_origin_annotation, val_origin_image, val_origin_size])
         print("[val] img size:", img[0].shape, "\nannotations:", anno, "\noffset", offset,

@@ -33,12 +33,13 @@ class ExampleModel(BaseModel):
 
         learning_rate = tf.train.exponential_decay(self.config.learning_rate, self.global_step, self.config.lr_step, 0.66,
                                                    name="learning_rate")
+        tf.summary.image("train_image", inputs)
         tf.summary.scalar("learning_rate", learning_rate)
         optimizer = tf.train.AdamOptimizer(learning_rate)
         self.train_op = optimizer.minimize(self.loss_op, self.global_step)
 
     def _build_evaluate_model(self):
-        inputs, targets, offset, scale, originAnnotation, origin_image, image_size = self.data_loader.get_data(False)
+        inputs, targets, bbox, scale, originAnnotation, origin_image, image_size = self.data_loader.get_data(False)
         # inputs = tf.cast(inputs, tf.float32) / 128. - 1
         # origin_image = tf.cast(origin_image, tf.float32) / 128. - 1
         inputs = tf.reshape(inputs, (-1, self.config.inputHeight, self.config.inputWidth, 3))
@@ -53,22 +54,28 @@ class ExampleModel(BaseModel):
 
         reshaped_output = tf.reshape(val_output, (-1, self.config.num_outputs//2, 2))
         reshaped_output = tf.transpose(reshaped_output, (1, 0, 2))
-        self.val_annotation = tf.transpose(reshaped_output *
+
+        wh_factor = np.array([[-1, 0, 1, 0], [0, -1, 0, 1]], dtype=np.float32)
+        tf_wh = tf.matmul(bbox, wh_factor.T)
+
+        self.val_annotation = tf.transpose((reshaped_output + 1.) / 2. *
                                            np.array([self.config.inputWidth, self.config.inputHeight]), (1, 0, 2))
         self.val_origin_output = tf.transpose(
-            (reshaped_output / scale) + offset, (1, 0, 2))
+            (reshaped_output + 1.) / 2. * tf_wh + bbox[:, :2], (1, 0, 2))
+#        / scale) + offset, (1, 0, 2))
 
         self.val_input = inputs
         self.val_target = targets
-        reshaped_target = tf.reshape(targets, (-1, self.config.num_outputs // 2, 2))
+
         self.val_target_annotation = tf.transpose(
-            tf.transpose(reshaped_target, (1, 0, 2)) * np.array([self.config.inputWidth, self.config.inputHeight]),
+            tf.transpose((targets + 1.) / 2., (1, 0, 2)) * np.array([self.config.inputWidth, self.config.inputHeight]),
             (1, 0, 2))
         self.val_originAnnotation = originAnnotation
         self.val_loss = self._loss(val_output, targets)
         self.val_nme = self._nme_loss(self.val_origin_output, self.val_originAnnotation)
         self.val_image = origin_image
         self.val_image_size = image_size
+        tf.summary.image("val_image", inputs)
         tf.summary.scalar("val_loss", self.val_loss)
         tf.summary.scalar("nme", self.val_nme)
 
@@ -82,7 +89,7 @@ class ExampleModel(BaseModel):
             tf.reduce_mean(targets[:, 42:48, :], axis=1), 2, axis=-1)
         outputs = tf.reshape(outputs, (-1, self.config.num_outputs // 2, 2))
         outputs = tf.cast(outputs, tf.float32)
-        loss_op = tf.reduce_mean(tf.reduce_sum(
+        loss_op = tf.reduce_mean(tf.reduce_mean(
             tf.norm(outputs - targets, 2, axis=2),
             axis=1) / interocular_distance)
         return loss_op

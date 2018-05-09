@@ -76,7 +76,7 @@ class DatasetLoader(object):
 
     def prepareInput(self, inFileName, train):
         fileName = inFileName.decode("UTF-8")
-        print(fileName)
+
         info_key = "train" if train else "val"
         infos = self.infos[info_key]
         imageFolder = infos["imageFolder"]
@@ -126,13 +126,13 @@ class DatasetLoader(object):
         face = face / 128. - 1.
         face = face.astype(np.float32)
 
-        offset = np.array(bbox[:2], np.float32)
+        bbox = np.array(bbox, np.float32)
         scale = np.array([xScale, yScale], np.float32)
         originAnnotation = np.array(annotation, np.float32)
         # adjust annotation and normalized to -1~1 value
-        annotation = np.array([[(point[0] - xmin) * xScale * 2. - 1., (point[1] - ymin) * yScale * 2. - 1.]
-                               for point in annotation], dtype=np.float32)
-        # annotation = (annotation * 2. - 1.).astype(np.float32)
+        # annotation = np.array([[(point[0] - xmin) * xScale * 2. - 1., (point[1] - ymin) * yScale * 2. - 1.]
+        #                        for point in annotation], dtype=np.float32)
+        annotation = self.normalize_annotation(annotation, bbox)
         if train:
             return face, annotation
         else:
@@ -143,11 +143,20 @@ class DatasetLoader(object):
             origin_image = origin_image / 128. - 1
             origin_image = origin_image.astype(np.float32)
             # provide offset, [xScale, yScale] to translate the output to origin axis.
-            return face, annotation, offset, scale, originAnnotation, \
+            return face, annotation, bbox, scale, originAnnotation, \
                    origin_image, origin_image_size
 
-    def _normalize(self, annotation, ):
+    def normalize_annotation(self, annotation, bbox):
+        xmin, ymin, xmax, ymax = bbox
+        originWidth, originHeight = xmax - xmin, ymax - ymin
+        return np.array([[(point[0] - xmin) * 2. / originWidth - 1., (point[1] - ymin) * 2. / originHeight - 1.]
+                               for point in annotation], dtype=np.float32)
 
+    def unnormalize_annotation(self, annotation, bbox):
+        xmin, ymin, xmax, ymax = bbox
+        originWidth, originHeight = xmax - xmin, ymax - ymin
+        np.array([[(point[0] + 1) / 2. * originWidth + xmin, (point[1] + 1) / 2. * originHeight + ymin]
+                  for point in annotation], dtype=np.float32)
         pass
 
     def _randomFlip(self, img, bbox, annotation):
