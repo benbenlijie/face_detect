@@ -13,4 +13,6 @@ class VGGModel(ExampleModel):
         super(VGGModel, self).__init__(config, data_loader)
 
     def _build_model(self, inputs, is_training=True):
-        return vgg.vgg_19(inputs, 1000, is_training=is_training)
+        result = vgg.vgg_19(inputs, 1000, is_training=is_training)
+        self.mobile_net_vars = [var for var in tf.trainable_variables() if var.name.startswith("vgg")]
+        return result

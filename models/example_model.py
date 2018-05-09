@@ -16,6 +16,7 @@ class ExampleModel(BaseModel):
         with tf.contrib.slim.arg_scope(mobilenet_v2.training_scope(is_training=is_training)):
             logits, endpoints = mobilenet_v2.mobilenet(inputs)
         ema = tf.train.ExponentialMovingAverage(0.999)
+        self.mobile_net_vars = [var for var in tf.trainable_variables() if var.name.startswith("Mobilenet")]
         return logits, endpoints
 
     def _build_train_model(self):
@@ -29,7 +30,6 @@ class ExampleModel(BaseModel):
         with tf.variable_scope("face_keypoint"):
             self.output = tf.layers.dense(logits, self.config.num_outputs, kernel_initializer=tf.contrib.layers.xavier_initializer())
 
-        self.mobile_net_vars = [var for var in tf.trainable_variables() if var.name.startswith("Mobilenet")]
         self.save_variables = tf.global_variables()
         self.loss_op = self._loss(self.output, targets)
         tf.summary.scalar("loss", self.loss_op)
@@ -86,6 +86,9 @@ class ExampleModel(BaseModel):
         self.data_loader.init_data_loader(sess, True)
         self.data_loader.init_data_loader(sess, False)
         sess.run(tf.global_variables_initializer())
+
+    def init_data_loader(self, sess, train=True):
+        self.data_loader.init_data_loader(sess, train)
 
     def _loss(self, outputs, targets):
         interocular_distance = tf.norm(

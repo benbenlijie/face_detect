@@ -12,11 +12,11 @@ class ExampleTrainer(BaseTrain):
 
     def train(self):
         tf.logging.info("Start to Train")
-
+        if self.model.init_op is not None:
+            self.model.init_op(self.sess)
         self.model.load(self.sess)
         for i in range(self.config.num_epochs):
-            if self.model.init_op is not None:
-                self.model.init_op(self.sess)
+            self.model.init_data_loader(self.sess, train=True)
             self.val_metric = []
             try:
                 while True:
@@ -26,13 +26,14 @@ class ExampleTrainer(BaseTrain):
                     self.log_step(elapsed_time)
             except tf.errors.OutOfRangeError as e:
                 tf.logging.info("Train epoch {} finished".format(i+1))
-                print("Train epoch {} finished".format(i + 1))
+                print("\nTrain epoch {} finished".format(i + 1))
             finally:
                 self.model.save(self.sess)
             train_loss = np.mean(self.val_metric)
             # test on val set
             start_time = time.time()
             self.val_metric = []
+            self.model.init_data_loader(self.sess, train=False)
             try:
                 while True:
                     self.eval_step()
@@ -66,7 +67,7 @@ class ExampleTrainer(BaseTrain):
 
     def log_step(self, elapsed_time=0):
         loss, step = self.sess.run([self.model.loss_op, self.model.global_step])
-        sys.stdout.write("step {}: total loss {}, secs/step {}\n".format(step, loss, elapsed_time))
+        sys.stdout.write("step {}: total loss {}, secs/step {}\r".format(step, loss, elapsed_time))
         sys.stdout.flush()
         if step > 50:
             summary_str = self.sess.run(self.model.summary_op)

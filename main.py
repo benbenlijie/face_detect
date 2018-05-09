@@ -3,6 +3,7 @@ import tensorflow as tf
 from data_loader import *
 from models.example_model import ExampleModel
 from models.vgg_model import VGGModel
+from models.custom_model import CustomModel
 from trainers.example_trainer import ExampleTrainer
 from utils.config import process_config
 from utils.utils import get_args
@@ -23,7 +24,7 @@ def main():
     if "vgg" in config.init_checkpoint:
         model = VGGModel(config, image_loader)
     else:
-        model = ExampleModel(config, image_loader)
+        model = CustomModel(config, image_loader)
     model.init_train_model()
     model.init_evaluate_model()
 
