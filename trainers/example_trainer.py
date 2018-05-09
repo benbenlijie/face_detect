@@ -26,6 +26,7 @@ class ExampleTrainer(BaseTrain):
                     self.log_step(elapsed_time)
             except tf.errors.OutOfRangeError as e:
                 tf.logging.info("Train epoch {} finished".format(i+1))
+                print("Train epoch {} finished".format(i + 1))
             finally:
                 self.model.save(self.sess)
             train_loss = np.mean(self.val_metric)
@@ -39,9 +40,14 @@ class ExampleTrainer(BaseTrain):
             except tf.errors.OutOfRangeError as e:
                 pass
             elapsed_time = time.time() - start_time
-            self.val_metric = np.mean(self.val_metric, axis=0)
-            tf.logging.info("Epoch {}: train loss: {}; val loss: {}; val nme: {}; cost time: {}"
-                            .format(i+1, train_loss, self.val_metric[0], self.val_metric[1], elapsed_time))
+            if len(self.val_metric) > 0:
+                self.val_metric = np.mean(self.val_metric, axis=0)
+                tf.logging.info("Epoch {}: train loss: {}; val loss: {}; val nme: {}; cost time: {}"
+                                .format(i+1, train_loss, self.val_metric[0], self.val_metric[1], elapsed_time))
+                print("Epoch {}: train loss: {}; val loss: {}; val nme: {}; cost time: {}"
+                      .format(i + 1, train_loss, self.val_metric[0], self.val_metric[1], elapsed_time))
+            else:
+                print("failed to calculate ")
 
     def train_step(self):
         global_step, loss, _ = self.sess.run([self.model.global_step, self.model.loss_op, self.model.train_op])
@@ -55,11 +61,12 @@ class ExampleTrainer(BaseTrain):
     def eval_step(self):
         val_loss, val_nme = self.sess.run(
             [self.model.val_loss, self.model.val_nme])
+        print([val_loss, val_nme])
         self.val_metric.append([val_loss, val_nme])
 
     def log_step(self, elapsed_time=0):
         loss, step = self.sess.run([self.model.loss_op, self.model.global_step])
-        sys.stdout.write("step {}: total loss {}, secs/step {}\r".format(step, loss, elapsed_time))
+        sys.stdout.write("step {}: total loss {}, secs/step {}\n".format(step, loss, elapsed_time))
         sys.stdout.flush()
         if step > 50:
             summary_str = self.sess.run(self.model.summary_op)

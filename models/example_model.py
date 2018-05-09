@@ -12,18 +12,22 @@ class ExampleModel(BaseModel):
     def __init__(self, config, data_loader):
         super(ExampleModel, self).__init__(config, data_loader)
 
+    def _build_model(self, inputs, is_training=True):
+        with tf.contrib.slim.arg_scope(mobilenet_v2.training_scope(is_training=is_training)):
+            logits, endpoints = mobilenet_v2.mobilenet(inputs)
+        ema = tf.train.ExponentialMovingAverage(0.999)
+        return logits, endpoints
+
     def _build_train_model(self):
 
         inputs, targets = self.data_loader.get_data()
         # inputs = tf.cast(inputs, tf.float32) / 128. - 1
         inputs = tf.reshape(inputs, (-1, self.config.inputHeight, self.config.inputWidth, 3))
-        with tf.contrib.slim.arg_scope(mobilenet_v2.training_scope(is_training=True)):
-            logits, endpoints = mobilenet_v2.mobilenet(inputs)
 
-        ema = tf.train.ExponentialMovingAverage(0.999)
+        logits, endpoints = self._build_model(inputs, True)
 
         with tf.variable_scope("face_keypoint"):
-            self.output = tf.layers.dense(logits, self.config.num_outputs)
+            self.output = tf.layers.dense(logits, self.config.num_outputs, kernel_initializer=tf.contrib.layers.xavier_initializer())
 
         self.mobile_net_vars = [var for var in tf.trainable_variables() if var.name.startswith("Mobilenet")]
         self.save_variables = tf.global_variables()
@@ -44,13 +48,11 @@ class ExampleModel(BaseModel):
         # origin_image = tf.cast(origin_image, tf.float32) / 128. - 1
         inputs = tf.reshape(inputs, (-1, self.config.inputHeight, self.config.inputWidth, 3))
         tf.get_variable_scope().reuse_variables()
-        with tf.contrib.slim.arg_scope(mobilenet_v2.training_scope(is_training=False)):
-            logits, endpoints = mobilenet_v2.mobilenet(inputs)
 
-        ema = tf.train.ExponentialMovingAverage(0.999)
+        logits, endpoints = self._build_model(inputs, False)
 
         with tf.variable_scope("face_keypoint", reuse=True):
-            val_output = tf.layers.dense(logits, self.config.num_outputs)
+            val_output = tf.layers.dense(logits, self.config.num_outputs, kernel_initializer=tf.contrib.layers.xavier_initializer())
 
         reshaped_output = tf.reshape(val_output, (-1, self.config.num_outputs//2, 2))
         reshaped_output = tf.transpose(reshaped_output, (1, 0, 2))
