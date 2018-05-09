@@ -25,7 +25,7 @@ class ExampleTrainer(BaseTrain):
         summary_str = self.sess.run(self.model.summary_op)
         self.model.summary.add_summary(summary_str, step)
         self.model.summary.flush()
-        if step % self.config.logInter == 1:
+        if step % self.config.logInter == 0:
             val_input, val_output, val_target, \
             val_image, val_origin_output, val_origin_annotation, val_image_size = self.sess.run(
                 [self.model.val_input, self.model.val_annotation, self.model.val_target_annotation,

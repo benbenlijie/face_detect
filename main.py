@@ -2,6 +2,7 @@ import tensorflow as tf
 
 from data_loader import *
 from models.example_model import ExampleModel
+from models.vgg_model import VGGModel
 from trainers.example_trainer import ExampleTrainer
 from utils.config import process_config
 from utils.utils import get_args
@@ -14,13 +15,13 @@ def main():
         args = get_args()
         config = process_config(args.config)
 
-    except:
-        print("missing or invalid arguments")
+    except Exception as e:
+        print("missing or invalid arguments", e)
         exit(0)
 
     image_loader = DatasetLoader(config, True)
 
-    model = ExampleModel(config, image_loader)
+    model = VGGModel(config, image_loader)
     model.init_train_model()
     model.init_evaluate_model()
 
