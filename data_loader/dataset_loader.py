@@ -68,16 +68,16 @@ class DatasetLoader(object):
         #         self.prepareInput, [fileName, train], output_type),
         #     batch_size = self.config.batch_size
         # ))
-
+        dataset = dataset.prefetch(buffer_size=self.config.batch_size * 100)
         dataset = dataset.map(
             lambda fileName: tf.py_func(
                 self.prepareInput, [fileName, train], output_type),
-            num_parallel_calls=self.config.batch_size * 10)
+            num_parallel_calls=32)
 
         if self.shuffle and train:
             dataset = dataset.shuffle(self.config.batch_size * 2)
         dataset = dataset.batch(self.config.batch_size)
-        dataset = dataset.prefetch(buffer_size=self.config.batch_size * 10)
+
         self.infos[info_key] = infos
         return dataset
 

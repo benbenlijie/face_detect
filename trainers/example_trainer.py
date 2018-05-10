@@ -27,7 +27,7 @@ class ExampleTrainer(BaseTrain):
                 except tf.errors.OutOfRangeError as e:
                     elapsed_time = time.time() - start_time
                     tf.logging.info("Train epoch {} finished. Cost time {}".format(i+1, elapsed_time))
-                    print("\nTrain epoch {} finished".format(i + 1))
+                    print("\nTrain epoch {} finished. Cost time {}".format(i + 1, elapsed_time))
                     break
             self.model.save(self.sess)
             train_loss = np.mean(self.val_metric)
@@ -54,10 +54,10 @@ class ExampleTrainer(BaseTrain):
     def train_step(self):
         global_step, loss, _ = self.sess.run([self.model.global_step, self.model.loss_op, self.model.train_op])
         self.val_metric.append(loss)
-        if global_step % self.config.saveInter == 0:
-            if self.best_score > loss:
-                self.model.save(self.sess)
-                self.best_score = loss
+        # if global_step % self.config.saveInter == 0:
+        #     if self.best_score > loss:
+        #         self.model.save(self.sess)
+        #         self.best_score = loss
         return loss, global_step
 
     def eval_step(self):
@@ -67,11 +67,11 @@ class ExampleTrainer(BaseTrain):
         self.val_metric.append([val_loss, val_nme])
 
     def log_step(self, loss, step):
-        # sys.stdout.write("step {}: total loss {}, secs/step {}\r".format(step, loss, elapsed_time))
-        # sys.stdout.flush()
-        print("step {}: total loss {}".format(step, loss))
-        if step > 50:
-            summary_str = self.sess.run(self.model.summary_op)
-            self.model.summary.add_summary(summary_str, step)
-            self.model.summary.flush()
+        sys.stdout.write("step {}: total loss {}\r".format(step, loss))
+        sys.stdout.flush()
+        # print("step {}: total loss {}".format(step, loss))
+        # if step > 50:
+        #     summary_str = self.sess.run(self.model.summary_op)
+        #     self.model.summary.add_summary(summary_str, step)
+        #     self.model.summary.flush()
 
