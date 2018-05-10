@@ -55,14 +55,21 @@ class DatasetLoader(object):
         else:
             output_type = [tf.float32, tf.float32, tf.float32, tf.float32, tf.float32, tf.float32, tf.int32]
 
+
         dataset = tf.data.TextLineDataset(dataFile)
+        # with open(dataFile, "r") as f:
+        #     dataLines = f.readlines()
+        # dataLines = [line.strip() for line in dataLines]
+        # print("data file: ", info_key, dataFile, len(dataLines))
+        # dataset = tf.data.Dataset.from_tensor_slices(dataLines)
+
         dataset = dataset.map(
             lambda fileName: tf.py_func(
                 self.prepareInput, [fileName, train], output_type))
         # dataset = dataset.repeat(self.config.num_epochs)
-        dataset = dataset.batch(self.config.batch_size)
         if self.shuffle and train:
             dataset = dataset.shuffle(self.config.batch_size * 2)
+        dataset = dataset.batch(self.config.batch_size)
 
         self.infos[info_key] = infos
         return dataset
@@ -78,14 +85,14 @@ class DatasetLoader(object):
 
     def init_data_loader(self, sess, train=True):
         info_key = self._get_train_key(train)
-        if info_key in self.data_iterator:
-            iterator = self.data_iterator[info_key]
-            sess.run(iterator.initializer)
+        # if info_key in self.data_iterator:
+        iterator = self.data_iterator[info_key]
+        sess.run(iterator.initializer)
 
     def prepareInput(self, inFileName, train):
         fileName = inFileName.decode("UTF-8")
-
         info_key = self._get_train_key(train)
+        print(fileName, info_key)
         infos = self.infos[info_key]
         imageFolder = infos["imageFolder"]
         annotationFolder = infos["annotationFolder"]

@@ -14,9 +14,10 @@ class ExampleModel(BaseModel):
 
     def _build_model(self, inputs, is_training=True):
         with tf.contrib.slim.arg_scope(mobilenet_v2.training_scope(is_training=is_training)):
-            logits, endpoints = mobilenet_v2.mobilenet(inputs)
+            logits, endpoints = mobilenet_v2.mobilenet(inputs, num_classes=self.config.num_outputs)
         ema = tf.train.ExponentialMovingAverage(0.999)
-        self.mobile_net_vars = [var for var in tf.trainable_variables() if var.name.startswith("Mobilenet")]
+        self.mobile_net_vars = [var for var in tf.trainable_variables() if var.name.startswith("Mobilenet") and
+                                "Logits" not in var.name]
         return logits, endpoints
 
     def _build_train_model(self):
@@ -77,9 +78,9 @@ class ExampleModel(BaseModel):
         self.val_nme = self._nme_loss(self.val_origin_output, self.val_originAnnotation)
         self.val_image = origin_image
         self.val_image_size = image_size
-        tf.summary.image("val_image", inputs)
-        tf.summary.scalar("val_loss", self.val_loss)
-        tf.summary.scalar("nme", self.val_nme)
+        # tf.summary.image("val_image", inputs)
+        # tf.summary.scalar("val_loss", self.val_loss)
+        # tf.summary.scalar("nme", self.val_nme)
 
     def init_op(self, sess):
         self.summary_op = tf.summary.merge_all()

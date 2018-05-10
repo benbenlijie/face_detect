@@ -17,29 +17,30 @@ class ExampleTrainer(BaseTrain):
         self.model.load(self.sess)
         for i in range(self.config.num_epochs):
             self.model.init_data_loader(self.sess, train=True)
+            self.model.init_data_loader(self.sess, train=False)
             self.val_metric = []
-            try:
-                while True:
+            while True:
+                try:
                     start_time = time.time()
-                    self.train_step()
+                    loss, step = self.train_step()
                     elapsed_time = time.time() - start_time
-                    self.log_step(elapsed_time)
-            except tf.errors.OutOfRangeError as e:
-                tf.logging.info("Train epoch {} finished".format(i+1))
-                print("\nTrain epoch {} finished".format(i + 1))
-            finally:
-                self.model.save(self.sess)
+                    self.log_step(loss, step, elapsed_time)
+                except tf.errors.OutOfRangeError as e:
+                    tf.logging.info("Train epoch {} finished".format(i+1))
+                    print("\nTrain epoch {} finished".format(i + 1))
+                    break
+            self.model.save(self.sess)
             train_loss = np.mean(self.val_metric)
             # test on val set
             start_time = time.time()
             self.val_metric = []
+            self.model.init_data_loader(self.sess, train=True)
             self.model.init_data_loader(self.sess, train=False)
-            try:
-                while True:
+            while True:
+                try:
                     self.eval_step()
-                pass
-            except tf.errors.OutOfRangeError as e:
-                pass
+                except tf.errors.OutOfRangeError as e:
+                    break
             elapsed_time = time.time() - start_time
             if len(self.val_metric) > 0:
                 self.val_metric = np.mean(self.val_metric, axis=0)
@@ -54,21 +55,20 @@ class ExampleTrainer(BaseTrain):
         global_step, loss, _ = self.sess.run([self.model.global_step, self.model.loss_op, self.model.train_op])
         self.val_metric.append(loss)
         if global_step % self.config.saveInter == 0:
-            val_loss, val_input = self.sess.run([self.model.val_loss, self.model.val_input])
-            if self.best_score > val_loss:
+            if self.best_score > loss:
                 self.model.save(self.sess)
-                self.best_score = val_loss
+                self.best_score = loss
+        return loss, global_step
 
     def eval_step(self):
         val_loss, val_nme = self.sess.run(
             [self.model.val_loss, self.model.val_nme])
-        print([val_loss, val_nme])
+        # print([val_loss, val_nme])
         self.val_metric.append([val_loss, val_nme])
 
-    def log_step(self, elapsed_time=0):
-        loss, step = self.sess.run([self.model.loss_op, self.model.global_step])
-        sys.stdout.write("step {}: total loss {}, secs/step {}\r".format(step, loss, elapsed_time))
-        sys.stdout.flush()
+    def log_step(self, loss, step, elapsed_time=0):
+        # sys.stdout.write("step {}: total loss {}, secs/step {}\r".format(step, loss, elapsed_time))
+        # sys.stdout.flush()
         if step > 50:
             summary_str = self.sess.run(self.model.summary_op)
             self.model.summary.add_summary(summary_str, step)

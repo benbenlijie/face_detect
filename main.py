@@ -21,8 +21,8 @@ def main():
         exit(0)
 
     image_loader = DatasetLoader(config, True)
-    if "vgg" in config.init_checkpoint:
-        model = VGGModel(config, image_loader)
+    if "mobilenet" in config.init_checkpoint:
+        model = ExampleModel(config, image_loader)
     else:
         model = CustomModel(config, image_loader)
     model.init_train_model()
