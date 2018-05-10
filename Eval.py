@@ -32,7 +32,7 @@ def main():
         if model.init_op is not None:
             model.init_op(sess)
         model.load(sess)
-        for i in range(5):
+        for i in range(20):
             # img, output, target = sess.run([model.val_input, model.val_annotation, model.val_target_annotation])
             #
             # annotations = np.concatenate((output[0].flatten(), target[0].flatten()))

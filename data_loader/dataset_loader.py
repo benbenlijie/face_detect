@@ -63,14 +63,21 @@ class DatasetLoader(object):
         # print("data file: ", info_key, dataFile, len(dataLines))
         # dataset = tf.data.Dataset.from_tensor_slices(dataLines)
 
+        # dataset = dataset.apply(tf.contrib.data.map_and_batch(
+        #     map_func = lambda fileName: tf.py_func(
+        #         self.prepareInput, [fileName, train], output_type),
+        #     batch_size = self.config.batch_size
+        # ))
+
         dataset = dataset.map(
             lambda fileName: tf.py_func(
-                self.prepareInput, [fileName, train], output_type))
-        # dataset = dataset.repeat(self.config.num_epochs)
+                self.prepareInput, [fileName, train], output_type),
+            num_parallel_calls=self.config.batch_size * 10)
+
         if self.shuffle and train:
             dataset = dataset.shuffle(self.config.batch_size * 2)
         dataset = dataset.batch(self.config.batch_size)
-
+        dataset = dataset.prefetch(buffer_size=self.config.batch_size * 10)
         self.infos[info_key] = infos
         return dataset
 

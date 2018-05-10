@@ -19,14 +19,14 @@ class ExampleTrainer(BaseTrain):
             self.model.init_data_loader(self.sess, train=True)
             self.model.init_data_loader(self.sess, train=False)
             self.val_metric = []
+            start_time = time.time()
             while True:
                 try:
-                    start_time = time.time()
                     loss, step = self.train_step()
-                    elapsed_time = time.time() - start_time
-                    self.log_step(loss, step, elapsed_time)
+                    self.log_step(loss, step)
                 except tf.errors.OutOfRangeError as e:
-                    tf.logging.info("Train epoch {} finished".format(i+1))
+                    elapsed_time = time.time() - start_time
+                    tf.logging.info("Train epoch {} finished. Cost time {}".format(i+1, elapsed_time))
                     print("\nTrain epoch {} finished".format(i + 1))
                     break
             self.model.save(self.sess)
@@ -66,9 +66,10 @@ class ExampleTrainer(BaseTrain):
         # print([val_loss, val_nme])
         self.val_metric.append([val_loss, val_nme])
 
-    def log_step(self, loss, step, elapsed_time=0):
-        sys.stdout.write("step {}: total loss {}, secs/step {}\r".format(step, loss, elapsed_time))
-        sys.stdout.flush()
+    def log_step(self, loss, step):
+        # sys.stdout.write("step {}: total loss {}, secs/step {}\r".format(step, loss, elapsed_time))
+        # sys.stdout.flush()
+        print("step {}: total loss {}".format(step, loss))
         if step > 50:
             summary_str = self.sess.run(self.model.summary_op)
             self.model.summary.add_summary(summary_str, step)
