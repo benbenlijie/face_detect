@@ -42,6 +42,8 @@ class ExampleModel(BaseModel):
         tf.summary.scalar("learning_rate", learning_rate)
         optimizer = tf.train.AdamOptimizer(learning_rate)
         self.train_op = optimizer.minimize(self.loss_op, self.global_step)
+        self.train_input = inputs
+        self.train_target = targets
 
     def _build_evaluate_model(self):
         inputs, targets, bbox, scale, originAnnotation, origin_image, image_size = self.data_loader.get_data(False)
@@ -92,14 +94,23 @@ class ExampleModel(BaseModel):
         self.data_loader.init_data_loader(sess, train)
 
     def _loss(self, outputs, targets):
+        outputs = tf.reshape(outputs, (-1, self.config.num_outputs // 2, 2))
+        outputs = tf.cast(outputs, tf.float32)
+
         interocular_distance = tf.norm(
             tf.reduce_mean(targets[:, 36:42, :], axis=1) -
             tf.reduce_mean(targets[:, 42:48, :], axis=1), 2, axis=-1)
-        outputs = tf.reshape(outputs, (-1, self.config.num_outputs // 2, 2))
-        outputs = tf.cast(outputs, tf.float32)
+
+        output_target_distance = tf.add(tf.norm(
+            tf.reduce_mean(outputs[:, 36:42, :], axis=1) -
+            tf.reduce_mean(targets[:, 36:42, :], axis=1), 2, axis=-1),
+            tf.norm(
+                tf.reduce_mean(outputs[:, 42:48, :], axis=1) -
+                tf.reduce_mean(targets[:, 42:48, :], axis=1), 2, axis=-1))
+
         loss_op = tf.reduce_mean(tf.reduce_mean(
             tf.norm(outputs - targets, 2, axis=2),
-            axis=1) / interocular_distance)
+            axis=1) / interocular_distance + output_target_distance)
         return loss_op
 
     def _nme_loss(self, outputs, targets):
