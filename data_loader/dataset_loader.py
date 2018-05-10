@@ -92,7 +92,7 @@ class DatasetLoader(object):
     def prepareInput(self, inFileName, train):
         fileName = inFileName.decode("UTF-8")
         info_key = self._get_train_key(train)
-        print(fileName, info_key)
+        # print(fileName, info_key)
         infos = self.infos[info_key]
         imageFolder = infos["imageFolder"]
         annotationFolder = infos["annotationFolder"]

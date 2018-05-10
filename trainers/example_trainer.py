@@ -67,8 +67,8 @@ class ExampleTrainer(BaseTrain):
         self.val_metric.append([val_loss, val_nme])
 
     def log_step(self, loss, step, elapsed_time=0):
-        # sys.stdout.write("step {}: total loss {}, secs/step {}\r".format(step, loss, elapsed_time))
-        # sys.stdout.flush()
+        sys.stdout.write("step {}: total loss {}, secs/step {}\r".format(step, loss, elapsed_time))
+        sys.stdout.flush()
         if step > 50:
             summary_str = self.sess.run(self.model.summary_op)
             self.model.summary.add_summary(summary_str, step)
