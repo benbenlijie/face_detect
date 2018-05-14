@@ -3,14 +3,14 @@
   "num_sampels": 1000,
   "exp_name": "face_keypoints",
   "batch_size": 16,
-  "num_epochs": 2,
-  "log_name": "log_lr=0.01_test",
-  "save_name": "save_test",
+  "num_epochs": 200,
+  "log_name": "log_lr=0.01_custom_net_1",
+  "save_name": "save_custom_net",
   "fine_tune": false,
 
-  "init_checkpoint": "mobilenet_v2_1.0_224.ckpt",
+  "init_checkpoint": "custom.ckpt",
 
-  "dataFile": "/home/ubuntu/face_detect/face_data/train/train.txt",
+  "dataFile": "/home/ubuntu/face_detect/face_data/train/train2.txt",
   "bboxFile": "/home/ubuntu/face_detect/face_data/train/bbox.txt",
   "imageFolder": "/home/ubuntu/face_detect/face_data/train/images",
   "annotationFolder": "/home/ubuntu/face_detect/face_data/train/annotations",
@@ -26,5 +26,5 @@
   "num_outputs": 136,
   "saveInter": 100,
   "lr_step": 1000,
-  "logInter": 50
+  "logInter": 100
 }

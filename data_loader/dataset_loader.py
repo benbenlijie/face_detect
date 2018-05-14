@@ -25,6 +25,7 @@ class DatasetLoader(object):
         self.dataset = self._create_dataset(self.bboxFile, self.dataFile, self.imageFolder, self.annotationFolder)
         self.valDataset = self._create_dataset(
             self.valBboxFile, self.valDataFile, self.valImageFolder, self.valAnnotationFolder, train=False)
+        self.data_iterator = dict()
 
     def _init_config(self, config: Bunch):
         self.config = config
@@ -43,7 +44,7 @@ class DatasetLoader(object):
             textLines = f.readlines()[1:]
         bboxTexts = [line.replace("\n", "").split(",") for line in textLines]
 
-        info_key = "train" if train else "val"
+        info_key = self._get_train_key(train)
         infos = {}
         infos["bboxInfos"] = {line[0]: list(map(int, line[1:])) for line in bboxTexts}
         infos["imageFolder"] = imageFolder
@@ -54,30 +55,51 @@ class DatasetLoader(object):
         else:
             output_type = [tf.float32, tf.float32, tf.float32, tf.float32, tf.float32, tf.float32, tf.int32]
 
+
         dataset = tf.data.TextLineDataset(dataFile)
+        # with open(dataFile, "r") as f:
+        #     dataLines = f.readlines()
+        # dataLines = [line.strip() for line in dataLines]
+        # print("data file: ", info_key, dataFile, len(dataLines))
+        # dataset = tf.data.Dataset.from_tensor_slices(dataLines)
+
+        # dataset = dataset.apply(tf.contrib.data.map_and_batch(
+        #     map_func = lambda fileName: tf.py_func(
+        #         self.prepareInput, [fileName, train], output_type),
+        #     batch_size = self.config.batch_size
+        # ))
+        dataset = dataset.prefetch(buffer_size=self.config.batch_size * 100)
         dataset = dataset.map(
             lambda fileName: tf.py_func(
-                self.prepareInput, [fileName, train], output_type))
-        dataset = dataset.repeat(self.config.num_epochs)
-        dataset = dataset.batch(self.config.batch_size)
+                self.prepareInput, [fileName, train], output_type),
+            num_parallel_calls=32)
+
         if self.shuffle and train:
-            dataset = dataset.shuffle(self.config.batch_size * 2)
+            dataset = dataset.shuffle(self.config.batch_size * 10)
+        dataset = dataset.batch(self.config.batch_size)
 
         self.infos[info_key] = infos
         return dataset
 
     def get_data(self, train=True):
+        info_key = self._get_train_key(train)
         if train:
-            iterator = self.dataset.make_one_shot_iterator()
-            return iterator.get_next()
+            iterator = self.dataset.make_initializable_iterator()
         else:
-            iterator = self.valDataset.make_one_shot_iterator()
-            return iterator.get_next()
+            iterator = self.valDataset.make_initializable_iterator()
+        self.data_iterator[info_key] = iterator
+        return iterator.get_next()
+
+    def init_data_loader(self, sess, train=True):
+        info_key = self._get_train_key(train)
+        # if info_key in self.data_iterator:
+        iterator = self.data_iterator[info_key]
+        sess.run(iterator.initializer)
 
     def prepareInput(self, inFileName, train):
         fileName = inFileName.decode("UTF-8")
-
-        info_key = "train" if train else "val"
+        info_key = self._get_train_key(train)
+        # print(fileName, info_key)
         infos = self.infos[info_key]
         imageFolder = infos["imageFolder"]
         annotationFolder = infos["annotationFolder"]
@@ -231,3 +253,7 @@ class DatasetLoader(object):
                     for pos in zip(bbox, self.config.margin, [width, height] * 2, imgSize * 2)]
 
         return newBbox
+
+    def _get_train_key(self, train):
+        info_key = "train" if train else "val"
+        return info_key

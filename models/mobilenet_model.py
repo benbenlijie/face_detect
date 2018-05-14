@@ -8,24 +8,29 @@ from base.base_model import BaseModel
 slim = tf.contrib.slim
 
 
-class ExampleModel(BaseModel):
+class MobileNetModel(BaseModel):
     def __init__(self, config, data_loader):
-        super(ExampleModel, self).__init__(config, data_loader)
+        super(MobileNetModel, self).__init__(config, data_loader)
+
+    def _build_model(self, inputs, is_training=True):
+        with tf.contrib.slim.arg_scope(mobilenet_v2.training_scope(is_training=is_training)):
+            logits, endpoints = mobilenet_v2.mobilenet(inputs, num_classes=self.config.num_outputs)
+        ema = tf.train.ExponentialMovingAverage(0.999)
+        self.mobile_net_vars = [var for var in tf.trainable_variables() if var.name.startswith("Mobilenet") and
+                                "Logits" not in var.name]
+        return logits, endpoints
 
     def _build_train_model(self):
 
         inputs, targets = self.data_loader.get_data()
         # inputs = tf.cast(inputs, tf.float32) / 128. - 1
         inputs = tf.reshape(inputs, (-1, self.config.inputHeight, self.config.inputWidth, 3))
-        with tf.contrib.slim.arg_scope(mobilenet_v2.training_scope(is_training=True)):
-            logits, endpoints = mobilenet_v2.mobilenet(inputs)
 
-        ema = tf.train.ExponentialMovingAverage(0.999)
+        logits, endpoints = self._build_model(inputs, True)
 
         with tf.variable_scope("face_keypoint"):
-            self.output = tf.layers.dense(logits, self.config.num_outputs)
+            self.output = tf.layers.dense(logits, self.config.num_outputs, kernel_initializer=tf.contrib.layers.xavier_initializer())
 
-        self.mobile_net_vars = [var for var in tf.trainable_variables() if var.name.startswith("Mobilenet")]
         self.save_variables = tf.global_variables()
         self.loss_op = self._loss(self.output, targets)
         tf.summary.scalar("loss", self.loss_op)
@@ -37,6 +42,8 @@ class ExampleModel(BaseModel):
         tf.summary.scalar("learning_rate", learning_rate)
         optimizer = tf.train.AdamOptimizer(learning_rate)
         self.train_op = optimizer.minimize(self.loss_op, self.global_step)
+        self.train_input = inputs
+        self.train_target = targets
 
     def _build_evaluate_model(self):
         inputs, targets, bbox, scale, originAnnotation, origin_image, image_size = self.data_loader.get_data(False)
@@ -44,13 +51,11 @@ class ExampleModel(BaseModel):
         # origin_image = tf.cast(origin_image, tf.float32) / 128. - 1
         inputs = tf.reshape(inputs, (-1, self.config.inputHeight, self.config.inputWidth, 3))
         tf.get_variable_scope().reuse_variables()
-        with tf.contrib.slim.arg_scope(mobilenet_v2.training_scope(is_training=False)):
-            logits, endpoints = mobilenet_v2.mobilenet(inputs)
 
-        ema = tf.train.ExponentialMovingAverage(0.999)
+        logits, endpoints = self._build_model(inputs, False)
 
         with tf.variable_scope("face_keypoint", reuse=True):
-            val_output = tf.layers.dense(logits, self.config.num_outputs)
+            val_output = tf.layers.dense(logits, self.config.num_outputs, kernel_initializer=tf.contrib.layers.xavier_initializer())
 
         reshaped_output = tf.reshape(val_output, (-1, self.config.num_outputs//2, 2))
         reshaped_output = tf.transpose(reshaped_output, (1, 0, 2))
@@ -75,23 +80,37 @@ class ExampleModel(BaseModel):
         self.val_nme = self._nme_loss(self.val_origin_output, self.val_originAnnotation)
         self.val_image = origin_image
         self.val_image_size = image_size
-        tf.summary.image("val_image", inputs)
-        tf.summary.scalar("val_loss", self.val_loss)
-        tf.summary.scalar("nme", self.val_nme)
+        # tf.summary.image("val_image", inputs)
+        # tf.summary.scalar("val_loss", self.val_loss)
+        # tf.summary.scalar("nme", self.val_nme)
 
     def init_op(self, sess):
         self.summary_op = tf.summary.merge_all()
+        self.data_loader.init_data_loader(sess, True)
+        self.data_loader.init_data_loader(sess, False)
         sess.run(tf.global_variables_initializer())
 
+    def init_data_loader(self, sess, train=True):
+        self.data_loader.init_data_loader(sess, train)
+
     def _loss(self, outputs, targets):
+        outputs = tf.reshape(outputs, (-1, self.config.num_outputs // 2, 2))
+        outputs = tf.cast(outputs, tf.float32)
+
         interocular_distance = tf.norm(
             tf.reduce_mean(targets[:, 36:42, :], axis=1) -
             tf.reduce_mean(targets[:, 42:48, :], axis=1), 2, axis=-1)
-        outputs = tf.reshape(outputs, (-1, self.config.num_outputs // 2, 2))
-        outputs = tf.cast(outputs, tf.float32)
-        loss_op = tf.reduce_mean(tf.reduce_mean(
+
+        eyes_distance = tf.add(tf.norm(
+            tf.reduce_mean(outputs[:, 36:42, :], axis=1) -
+            tf.reduce_mean(targets[:, 36:42, :], axis=1), 2, axis=-1),
+            tf.norm(
+                tf.reduce_mean(outputs[:, 42:48, :], axis=1) -
+                tf.reduce_mean(targets[:, 42:48, :], axis=1), 2, axis=-1))
+
+        loss_op = tf.reduce_mean(tf.reduce_sum(
             tf.norm(outputs - targets, 2, axis=2),
-            axis=1) / interocular_distance)
+            axis=1) / interocular_distance + eyes_distance * 2.)
         return loss_op
 
     def _nme_loss(self, outputs, targets):
@@ -114,7 +133,7 @@ class ExampleModel(BaseModel):
                 saver.restore(sess, latest_checkpoint)
                 tf.logging.info("Model loaded")
         else:
-            super(ExampleModel, self).load(sess)
+            super(MobileNetModel, self).load(sess)
 
     def _save(self, sess, global_step=None):
         tf.logging.info("Saving model...")

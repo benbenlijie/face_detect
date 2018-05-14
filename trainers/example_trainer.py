@@ -1,6 +1,8 @@
 from base.base_train import BaseTrain
 import sys
 import numpy as np
+import tensorflow as tf
+import time
 
 
 class ExampleTrainer(BaseTrain):
@@ -8,43 +10,67 @@ class ExampleTrainer(BaseTrain):
         super(ExampleTrainer, self).__init__(sess, model, config)
         self.best_score = float('inf')
 
+    def train(self):
+        tf.logging.info("Start to Train")
+        if self.model.init_op is not None:
+            self.model.init_op(self.sess)
+        self.model.load(self.sess)
+        for i in range(self.config.num_epochs):
+            self.model.init_data_loader(self.sess, train=True)
+            self.val_metric = []
+            start_time = time.time()
+            while True:
+                try:
+                    loss, step = self.train_step()
+                    self.log_step(loss, step)
+                except tf.errors.OutOfRangeError as e:
+                    elapsed_time = time.time() - start_time
+                    tf.logging.info("Train epoch {} finished. Cost time {}".format(i+1, elapsed_time))
+                    print("\nTrain epoch {} finished. Cost time {}".format(i + 1, elapsed_time))
+                    break
+            self.model.save(self.sess)
+            train_loss = np.mean(self.val_metric)
+            # test on val set
+            start_time = time.time()
+            self.val_metric = []
+
+            self.model.init_data_loader(self.sess, train=False)
+            while True:
+                try:
+                    self.eval_step()
+                except tf.errors.OutOfRangeError as e:
+                    break
+            elapsed_time = time.time() - start_time
+            if len(self.val_metric) > 0:
+                self.val_metric = np.mean(self.val_metric, axis=0)
+                tf.logging.info("Epoch {}: train loss: {}; val loss: {}; val nme: {}; cost time: {}"
+                                .format(i+1, train_loss, self.val_metric[0], self.val_metric[1], elapsed_time))
+                print("Epoch {}: train loss: {}; val loss: {}; val nme: {}; cost time: {}"
+                      .format(i + 1, train_loss, self.val_metric[0], self.val_metric[1], elapsed_time))
+            else:
+                print("failed to calculate ")
+
     def train_step(self):
-        self.sess.run(self.model.train_op)
-        global_step = self.sess.run(self.model.global_step)
-        if global_step % self.config.saveInter == 0:
-            val_loss, val_input = self.sess.run([self.model.val_loss, self.model.val_input])
-            if self.best_score > val_loss:
-                self.model.save(self.sess)
-                self.best_score = val_loss
+        global_step, loss, _ = self.sess.run([self.model.global_step, self.model.loss_op, self.model.train_op])
+        self.val_metric.append(loss)
+        # if global_step % self.config.saveInter == 0:
+        #     if self.best_score > loss:
+        #         self.model.save(self.sess)
+        #         self.best_score = loss
+        return loss, global_step
 
+    def eval_step(self):
+        val_loss, val_nme = self.sess.run(
+            [self.model.val_loss, self.model.val_nme])
+        # print([val_loss, val_nme])
+        self.val_metric.append([val_loss, val_nme])
 
-    def log_step(self, elapsed_time=0):
-        loss, step = self.sess.run([self.model.loss_op, self.model.global_step])
-        sys.stdout.write("step {}: total loss {}, secs/step {}\r".format(step, loss, elapsed_time))
+    def log_step(self, loss, step):
+        sys.stdout.write("step {}: total loss {}\r".format(step, loss))
         sys.stdout.flush()
-        summary_str = self.sess.run(self.model.summary_op)
-        self.model.summary.add_summary(summary_str, step)
-        self.model.summary.flush()
-        if step % self.config.logInter == 0:
-            val_input, val_output, val_target, \
-            val_image, val_origin_output, val_origin_annotation, val_image_size = self.sess.run(
-                [self.model.val_input, self.model.val_annotation, self.model.val_target_annotation,
-                 self.model.val_image, self.model.val_origin_output, self.model.val_originAnnotation,
-                 self.model.val_image_size
-                 ])
-            if val_input.ndim == 4:
-                for i in range(len(val_input)):
-                    image_arr = val_input[i]
-                    annotation = val_output[i].flatten()
-                    target_anno = val_target[i].flatten()
-                    annotation = np.concatenate((annotation, target_anno))
-                    file_name = "val_output_{:05}_{:02}.jpg".format(step, i)
-                    self.model.save_val_image(image_arr, list(map(int, annotation)), file_name)
-            if val_image.ndim == 4:
-                for i in range(len(val_image)):
-                    image_arr = val_image[i]
-                    annotation = val_origin_output[i].flatten()
-                    target_anno = val_origin_annotation[i].flatten()
-                    annotation = np.concatenate((annotation, target_anno))
-                    file_name = "val_origin_output_{:05}_{:02}.jpg".format(step, i)
-                    self.model.save_val_image(image_arr, list(map(int, annotation)), file_name, val_image_size[i])
+        # print("step {}: total loss {}".format(step, loss))
+        if step > 200 and step % 100 == 0:
+            summary_str = self.sess.run(self.model.summary_op)
+            self.model.summary.add_summary(summary_str, step)
+            self.model.summary.flush()
+
